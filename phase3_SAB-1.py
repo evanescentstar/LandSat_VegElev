@@ -104,7 +104,7 @@ from osgeo import gdal
 
 driver = gdal.GetDriverByName("GTiff")
 # outdata = driver.Create('nv/test.tif', int(dcomp1.x.size), int(dcomp1.y.size), 1, gdal.GDT_Float32, options=['COMPRESS=LZW', 'INTERLEAVE=PIXEL'])
-outdata = driver.Create('nv/newtest.tif', dcomp1.x.size, dcomp1.y.size, 1, gdal.GDT_Float32, options=['COMPRESS=LZW', 'INTERLEAVE=PIXEL'])
+outdata = driver.Create('nv/chktst2.tif', dcomp1.x.size, dcomp1.y.size, 1, gdal.GDT_Float32, options=['COMPRESS=LZW', 'INTERLEAVE=PIXEL'])
 outdata.SetGeoTransform(gt2)
 outdata.SetProjection(dcomp1.spatial_ref.attrs['spatial_ref'])
 outdata.SetMetadata({'AREA_OR_POINT': 'Area'})
@@ -217,16 +217,12 @@ for f1 in flist:
             iflxb = 0
         else:
             iflxb = int(np.round(iflxb))
-        icexb = cur2.x[-1] - urx1a
-        if icexb < 0:
+        icexb = int(np.round((cur2.x[-1] - urx1a) * -1))
+        if icexb > -1:
             icexb = None
-        else:
-            icexb = int(np.round(icexb * -1))
-        iflyb = lly1a - cur2.y[-1]
-        if iflyb < 0:
+        iflyb = int(np.round((lly1a - cur2.y[-1]) * -1))
+        if iflyb > -1:
             iflyb = None
-        else:
-            iflyb = int(np.round(iflyb * -1))
         iceyb = cur2.y[0] - ury1a
         if iceyb < 0:
             iceyb = 0
