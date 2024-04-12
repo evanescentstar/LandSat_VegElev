@@ -24,14 +24,14 @@ def crsproj(shpcrs, newcrs):
     return project
 
 
-def shpplt(shp, crs1=None, notrans=True, **kwargs):
+def shpplt(shp, crs1=None, trans=None, **kwargs):
     import geopandas as gpd
     from cartopy import crs
     shpp = gpd.GeoSeries(shp)
     if crs1 == 'cpc':
         cpc = crs.PlateCarree()
-        if not notrans:
-            t1 = crsproj('3857', '4326')
+        if trans is not None:
+            t1 = crsproj(str(trans), '4326')
             shp1a = transform(t1, shp)
             shp1ap = gpd.GeoSeries(shp1a)
         else:
@@ -104,7 +104,7 @@ from osgeo import gdal
 
 driver = gdal.GetDriverByName("GTiff")
 # outdata = driver.Create('nv/test.tif', int(dcomp1.x.size), int(dcomp1.y.size), 1, gdal.GDT_Float32, options=['COMPRESS=LZW', 'INTERLEAVE=PIXEL'])
-outdata = driver.Create('nv/chktst2.tif', dcomp1.x.size, dcomp1.y.size, 1, gdal.GDT_Float32, options=['COMPRESS=LZW', 'INTERLEAVE=PIXEL'])
+outdata = driver.Create('nv/chktst3.tif', dcomp1.x.size, dcomp1.y.size, 1, gdal.GDT_Float32, options=['COMPRESS=LZW', 'INTERLEAVE=PIXEL'])
 outdata.SetGeoTransform(gt2)
 outdata.SetProjection(dcomp1.spatial_ref.attrs['spatial_ref'])
 outdata.SetMetadata({'AREA_OR_POINT': 'Area'})
@@ -117,7 +117,7 @@ band.Fill(nan)
 outdata.FlushCache()
 
 ### within file loop
-for f1 in flist:
+for f1 in flist[-1:]:
     ###f1 = flist[0]
     ds1 = rio.open_rasterio(f1.strip())
     prj1 = crsproj(dcomp.rio.crs.to_epsg(), ds1.rio.crs.to_epsg())
@@ -139,12 +139,20 @@ for f1 in flist:
     if lly2 < dcomp1.y[-1]:
         ifly = dcomp1.y.size - 1
     else:
-        ifly = np.where(dcomp1.y < lly2)[0][0]
+        tmpfly = np.where(dcomp1.y < lly2)[0]
+        if len(tmpfly) > 1:
+            ifly = tmpfly[1]
+        else:
+            ifly = tmpfly[0]
 
     if urx2 > dcomp1.x[-1]:
         icex = dcomp1.x.size - 1
     else:
-        icex = np.where(dcomp1.x > urx2)[0][0]
+        tmpcex = np.where(dcomp1.x > urx2)[0]
+        if len(tmpcex) > 1:
+            icex = tmpcex[1]
+        else:
+            icex = tmpcex[0]
 
     if ury2 > dcomp1.y[0]:
         icey = 0
@@ -170,31 +178,24 @@ for f1 in flist:
         p1a = transform(prj1, p2a)
         llx1a, lly1a, urx1a, ury1a = p1a.bounds
 
-        lx = 5
-        ux = -5
-        ly = -5
-        uy = 5
+
         if llx1a < ds1.x[0]:
             iflxa = 0
-            lx = None
         else:
             iflxa = np.where(ds1.x < llx1a)[0][-1]
 
         if lly1a < ds1.y[-1]:
             iflya = ds1.y.size - 1
-            ly = None
         else:
             iflya = np.where(ds1.y < lly1a)[0][0]
 
         if urx1a > ds1.x[-1]:
             icexa = ds1.x.size - 1
-            ux = None
         else:
             icexa = np.where(ds1.x > urx1a)[0][0]
 
         if ury1a > ds1.y[0]:
             iceya = 0
-            uy = None
         else:
             iceya = np.where(ds1.y > ury1a)[0][-1]
 
@@ -205,25 +206,25 @@ for f1 in flist:
         cur2m = cur2m / 1000.
         cur2m_1 = cur2m.repeat(10, axis=1).repeat(10, axis=0)
 
-        # since the values are at midpoints of the 10-meter square cells,
-        # must take 5 meters off the beginning and end of this array in
-        # both directions, UNLESS one or more sides is on an edge of the file data
-        cur2m_1 = cur2m_1[uy:ly, lx:ux]
+        cur2_uy = cur2.y[0] + 5
+        cur2_ly = cur2.y[-1] - 5
+        cur2_ux = cur2.x[-1] + 5
+        cur2_lx = cur2.x[0] - 5
 
         # find the offsets of the landsat pixel in this space from the
         # constructed finer mesh of the CoNED-based product
-        iflxb = llx1a - cur2.x[0]
+        iflxb = llx1a - cur2_lx
         if iflxb < 0:
             iflxb = 0
         else:
             iflxb = int(np.round(iflxb))
-        icexb = int(np.round((cur2.x[-1] - urx1a) * -1))
+        icexb = int(np.round((cur2_ux - urx1a) * -1))
         if icexb > -1:
             icexb = None
-        iflyb = int(np.round((lly1a - cur2.y[-1]) * -1))
+        iflyb = int(np.round((lly1a - cur2_ly) * -1))
         if iflyb > -1:
             iflyb = None
-        iceyb = cur2.y[0] - ury1a
+        iceyb = cur2_uy - ury1a
         if iceyb < 0:
             iceyb = 0
         else:
